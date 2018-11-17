@@ -9,6 +9,10 @@ https://www.oreilly.com/learning/a-new-visualization-to-beautifully-explore-corr
 
 In this implementation the solar map is intercative. Click on any factor to place it in the center and update correlation map.
 
-To run: download corr.html and open using browser which supports javascript.
+## Usage:
+Open corr.html using browser which supports javascript.
 
+## Custom data:
 Correlation table is stored in variable 'corr' and can be replaced.
+
+Factor names are stored in attribute 'factor' of variables 'factors' and can be replaced.
