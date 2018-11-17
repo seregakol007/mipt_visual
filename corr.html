@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+
+  </head>
+  <body>
+    <style>
+        svg text {
+        -webkit-user-select: none;
+           -moz-user-select: none;
+            -ms-user-select: none;
+                user-select: none;
+        }
+        svg text::selection {
+            background: none;
+        }
+    </style>
+    <div id="body">
+    </div>
+    <script type="text/javascript">
+
+var w = 1024,
+    h = w,
+    center_x = w / 2,
+    center_y = w / 2,
+    step = w / 24,
+    r_big = w / 32,
+    r_small = w / 64;
+    
+var corr = [[1.0, 0.85, 0.65, 0.0, 0.99],
+            [0.85, 1.0, 0.35, 0.25, 0.84],
+            [0.65, 0.35, 1.0, 0.0, 0.67],
+            [0.0, 0.25, 0.0, 1.0, 0.01],
+            [0.99, 0.84, 0.67, 0.01, 1.0]]
+
+timer_ms = 1000;
+
+var rads = d3.range(11).map(function(i) { return {radius: (i)*step, static: true}; });
+
+var factors = d3.range(corr.length).map(function(i) { return {factor: 'f'+i, static: false, cx: center_x, cy: center_y, angle:1.0*i, index: i, my_r: r_big}; });
+
+function bind_a_to_b(a, b) {
+    a.my_r = r_small;
+    b.my_r = r_big;
+    a.r = r_big+r_small;
+    a.cx = b.cx + b.r * Math.cos(b.angle);
+    a.cy = b.cy + b.r * Math.sin(b.angle);
+}
+
+function ind_to_r(i, sun_index) {
+    dist = 10 - Math.max(Math.min(10, Math.floor(10.0 * Math.abs(corr[sun_index][i])+1e-6)), 0);
+    return rads[dist].radius;
+}
+
+function updater(sun_index) {
+    for (var i = 0; i < factors.length; i++) {
+        factors[i].r =  ind_to_r(i, sun_index);
+        factors[i].my_r =  r_big;
+        factors[i].cx = center_x;
+        factors[i].cy = center_y;
+    };
+}
+updater(0);
+binding(0);
+
+var svg = d3.select("#body").append("svg:svg")
+    .attr("width", w)
+    .attr("height", h);
+svg.append("svg:rect")
+    .attr("width", "100%")
+    .attr("height", "100%")
+    .attr("fill", "pink");
+
+svg.selectAll()
+    .data(rads)
+    .enter().append("svg:circle")
+    .attr("r", function(d) { return d.radius; })
+    .attr("cx", function(d) { return center_x; })
+    .attr("cy", function(d) { return center_y; })
+    .attr("class", "static_circle")
+    .style("fill", function(d, i) { return "none"; })
+    .style("stroke", function(d, i) { return "gray"; })
+    .style("stroke-width", function(d, i) { return "0.1%"});
+
+svg.selectAll()
+    .data(factors)
+    .enter().append("svg:circle")
+    .attr("r", function(d) { return r_big; })
+    .attr("cx", function(d) { return d.cx + d.r * Math.cos(d.angle); })
+    .attr("cy", function(d) { return d.cy + d.r * Math.sin(d.angle); })
+    .style("fill", function(d, i) { var lst = ["red", "green", "lightblue", "darkseagreen", 'brown', 'grey']; return lst[i % lst.length]; });
+
+svg.selectAll()
+    .data(factors)
+    .enter().append("svg:text")
+    .attr("x", function(d) { return d.cx + d.r * Math.cos(d.angle); })
+    .attr("y", function(d) { return d.cy + d.r * Math.sin(d.angle); })
+    .attr("dy", ".35em")
+    .style("text-anchor", "middle")    
+    .classed('noselect', true)
+    .text(function(d) { return d.factor; });
+
+
+
+circles = svg.selectAll('circle')
+    .filter(function (d) {
+        return !d.static;
+    })
+texts = svg.selectAll("text")
+        .filter(function (d) {
+            return !d.static;
+        })
+svg.selectAll()
+    .data(rads)
+    .enter().append("svg:text")
+    .attr("x", function(d) { return center_x; })
+    .attr("y", function(d) { return center_y - d.radius; })
+    .attr("dy", "-0.25em")
+    .style("text-anchor", "middle")    
+    .classed('noselect', true)
+    .text(function(d, i) { if (i == 0) return ''; return '0.'+(10-i); });
+
+function binding(idx) {
+    for (var i = 0; i < factors.length-1; i++) {
+        for (var j = i + 1; j < factors.length; j++) {
+            if (corr[i][j] >= 0.95) {
+                if (corr[idx][i] < corr[idx][j]) {
+                    bind_a_to_b(factors[i], factors[j]);
+                } else {
+                    bind_a_to_b(factors[j], factors[i]);
+                }
+            }
+        }
+    }
+}
+
+circles
+    .transition()
+    .duration(timer_ms)
+    .attr("r", function(d) { return d.my_r; })
+    .attr("cx", function(d) { return d.cx + d.r * Math.cos(d.angle); })
+    .attr("cy", function(d) { return d.cy + d.r * Math.sin(d.angle); })
+
+texts
+    .transition()
+    .duration(timer_ms)
+    .attr("x", function(d) { return d.cx + d.r * Math.cos(d.angle); })
+    .attr("y", function(d) { return d.cy + d.r * Math.sin(d.angle); })
+
+circles.on("click", function(o) {
+    console.log(o);
+    updater(o.index);
+    binding(o.index);
+    
+
+    circles
+    .transition()
+    .duration(timer_ms)
+    .attr("r", function(d) { return d.my_r; })
+    .attr("cx", function(d) { return d.cx + d.r * Math.cos(d.angle); })
+    .attr("cy", function(d) { return d.cy + d.r * Math.sin(d.angle); })
+
+    texts
+    .transition()
+    .duration(timer_ms)
+    .attr("x", function(d) { return d.cx + d.r * Math.cos(d.angle); })
+    .attr("y", function(d) { return d.cy + d.r * Math.sin(d.angle); })
+});
+
+texts.on("click", function(o) {
+    console.log(o);
+    updater(o.index);
+    binding(o.index);
+    
+
+    circles
+    .transition()
+    .duration(timer_ms)
+    .attr("r", function(d) { return d.my_r; })
+    .attr("cx", function(d) { return d.cx + d.r * Math.cos(d.angle); })
+    .attr("cy", function(d) { return d.cy + d.r * Math.sin(d.angle); })
+
+    texts
+    .transition()
+    .duration(timer_ms)
+    .attr("x", function(d) { return d.cx + d.r * Math.cos(d.angle); })
+    .attr("y", function(d) { return d.cy + d.r * Math.sin(d.angle); })
+});
+
+
+</script>
+  
+</body></html>
